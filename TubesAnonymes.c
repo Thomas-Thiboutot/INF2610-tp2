@@ -5,39 +5,59 @@
 #include <fcntl.h>
 
 int main() {
-    
-    if( fork() == 0) {
 
+    int cmpResult;
+
+    char *cat_args[] = {"cat", "scores", NULL};
+    char *grep_args[] = {"grep", "Villanova", NULL};
+    char *cut_args[] = {"cut", "-b", "1-10", NULL};
+
+    int pipes[4];
+    pipe(pipes); // sets up 1st pipe
+    pipe(pipes + 2); // sets up 2nd pipe
+
+    if( fork() == 0) {
+        
         if( fork() == 0) {
 
             if( fork() == 0) {
-                int fd[2]; pipe(fd);
-
+                
                 int fp = open("In.txt", O_WRONLY | O_RDONLY);
+                dup2(fp, 0);
+                dup2(pipes[1], 1);
 
-                dup2(fp,0);
-                //dup2(fp, 1);
-                close(fp);
+                close(pipes[0]);
+                close(pipes[1]);
+                close(pipes[2]);
+                close(pipes[3]);
 
-                //dup2(fd[0],1);
-                //close(fd[0]);
-
-                execlp("rev","rev",NULL, NULL);
-                _exit(0);
+                execl("usr/bin/rev", "rev", "In.txt", NULL);
             }
+            dup2(pipes[0], 0);
+            dup2(pipes[3], 1);
 
-            //execlp("rev","rev",NULL,NULL);
-            _exit(0);
+            close(pipes[0]);
+            close(pipes[1]);
+            close(pipes[2]);
+            close(pipes[3]);
+
+            execl("usr/bin/rev", "rev", "In.txt", NULL);
         }
         
-        //int fd[2];
-        //pipe(fd);
-        //dup2(fd[0],0);
-        //dup2(fd[1],1);
-        execlp("cmp","cmp","-s","-", "In.txt");
-        _exit(0);
+        dup2(pipes[2], 0);
+        close(pipes[0]);
+        close(pipes[1]);
+        close(pipes[2]);
+        close(pipes[3]);
+        execl("usr/bin/cmp", "cmp", "-","In.txt", NULL);
     }
+    close(pipes[0]);
+    close(pipes[1]);
+    close(pipes[2]);
+    close(pipes[3]);
+
+    wait(&cmpResult);
     while(wait(NULL) > 0);
-    printf("fin");
+    printf("resultat de la comparaison:%d \n", WEXITSTATUS(cmpResult));
     return 0;
 }
